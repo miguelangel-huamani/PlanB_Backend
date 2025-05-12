@@ -24,7 +24,6 @@ class Auction(models.Model):
     image = models.ImageField(upload_to='auctions/', blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     stock = models.IntegerField(validators=[MinValueValidator(0)])
-    rating = models.DecimalField(max_digits=3, decimal_places=2, validators=[MinValueValidator(0), MaxValueValidator(5)])
     category = models.ForeignKey(Category, related_name='auctions',on_delete=models.CASCADE)
     brand = models.CharField(max_length=100)
 
@@ -35,7 +34,26 @@ class Auction(models.Model):
 
     def __str__(self):
         return self.title
-    
+
+class Rating(models.Model):
+    rating = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=1.0,
+        validators=[MinValueValidator(0), MaxValueValidator(5)]
+    )
+    auction = models.ForeignKey(Auction, related_name="ratings", on_delete=models.CASCADE)
+    rater = models.ForeignKey(CustomUser, related_name="ratings", on_delete=models.CASCADE)
+
+    class Meta:
+        ordering = ("rating",)
+        constraints = [
+            models.UniqueConstraint(fields=["auction", "rater"], name="unique_rating_per_user")
+        ]
+
+    def __str__(self):
+        return str(self.rating)
+
 
 class Bid(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
@@ -48,3 +66,19 @@ class Bid(models.Model):
 
     def __str__(self):
         return str(self.amount)
+    
+
+
+class Comment(models.Model):
+    title = models.CharField(max_length=100)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="comments")
+    auction = models.ForeignKey(Auction, on_delete=models.CASCADE, related_name="comments")
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.title}"

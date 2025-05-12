@@ -2,8 +2,9 @@ from django.shortcuts import render
 
 # Create your views here.
 from rest_framework import generics, status
-from .models import Category, Auction, Bid
-from .serializers import CategoryListCreateSerializer, CategoryDetailSerializer, AuctionListCreateSerializer, AuctionDetailSerializer, BidListCreateSerializer, BidDetailSerializer
+from .models import Category, Auction, Bid, Rating, Comment
+from .serializers import (CategoryListCreateSerializer, CategoryDetailSerializer, AuctionListCreateSerializer, AuctionDetailSerializer, 
+                          BidListCreateSerializer, BidDetailSerializer, RatingSerializer, CommentSerializer)
 from django.db.models import Q
 
 from rest_framework.exceptions import ValidationError
@@ -12,7 +13,7 @@ from rest_framework.views import APIView
 
 #PERMISOS
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser, IsAuthenticatedOrReadOnly
-from .permissions import IsOwnerOrAdmin
+from .permissions import IsOwnerOrAdmin, IsRatingOwnerOrAdmin
 
 class CategoryListCreate(generics.ListCreateAPIView):
     queryset = Category.objects.all()
@@ -49,6 +50,15 @@ class AuctionListCreate(generics.ListCreateAPIView):
 
         return queryset
 
+    def perform_create(self, serializer):
+        # Guardar el usuario autenticado como subastador
+        serializer.save(auctioneer=self.request.user)
+
+        Rating.objects.create(
+            rating=1.0, # por defecto 1.0
+            auction=serializer.instance,
+            rater=self.request.user
+        )
 
 class AuctionRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     queryset = Auction.objects.all()
@@ -95,3 +105,69 @@ class UserBidListView(APIView):
         serializer = BidListCreateSerializer(user_bids, many=True)
         return Response(serializer.data)
 
+
+
+# Rating Views
+class RatingListCreate(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        auction_id = self.kwargs['auction_id']
+        ratings = Rating.objects.filter(auction__id=auction_id)
+        serializer = RatingSerializer(ratings, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request, *args, **kwargs):
+        # Validar que cada usuario valora solo una cez una subasta
+        auction_id = self.kwargs['auction_id']
+        auction = Auction.objects.get(pk=auction_id)
+
+        if Rating.objects.filter(auction=auction, rater=request.user).exists():
+            raise ValidationError("Ya has valorado esta subasta.")
+
+        serializer = RatingSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(rater=self.request.user, auction=auction)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class RatingRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Rating.objects.all()
+    serializer_class = RatingSerializer
+    permission_classes = [IsRatingOwnerOrAdmin]  # Solo dueño de la valoración o admin puede modificar/eliminar
+
+    def get_queryset(self):
+        auction_id = self.kwargs['auction_id']
+        return Rating.objects.filter(auction__id=auction_id)
+
+class RatingUserAuctionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, auction_id):
+        try:
+            rating = Rating.objects.get(auction__id=auction_id, rater=request.user)
+            serializer = RatingSerializer(rating)
+            return Response(serializer.data)
+        
+        except Rating.DoesNotExist:
+            return Response({"detail": "No has valorado esta subasta."}, status=404)
+
+class CommentListCreate(generics.ListCreateAPIView):
+    serializer_class = CommentSerializer
+    #permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        auction_id = self.kwargs['auction_id']
+        print("ID recibido en vista:", auction_id)  # ← TEMPORAL
+        return Comment.objects.filter(auction_id=auction_id)
+
+    def perform_create(self, serializer):
+        auction_id = self.kwargs['auction_id']
+        serializer.save(user=self.request.user, auction_id=auction_id)
+
+class CommentRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = CommentSerializer
+    #permission_classes = [IsOwnerOrAdmin]
+
+    def get_queryset(self):
+        return Comment.objects.all()
