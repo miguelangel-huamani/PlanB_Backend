@@ -83,10 +83,10 @@ class AuctionDetailSerializer(serializers.ModelSerializer):
     
     def validate(self, data):
         # Validación de la fecha de cierre
-        if data['closing_date'] <= data['creation_date']:
+        if data['closing_date'] <=timezone.now():
             raise serializers.ValidationError("La fecha de cierre no puede ser menor ni igual a la fecha de creación.")
         
-        if data['closing_date'] < data['creation_date'] + timedelta(days=15):
+        if data['closing_date'] < timezone.now() + timedelta(days=15):
             raise serializers.ValidationError("La fecha de cierre debe ser al menos 15 días mayor que la fecha de creación.")
         
         return data

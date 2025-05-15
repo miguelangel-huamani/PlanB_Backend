@@ -52,11 +52,9 @@ class WalletDetailSerializer(serializers.ModelSerializer):
 class DepositSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0.01)
 
-
-class WithdrawSerializer(serializers.Serializer):
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-
     def validate_amount(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Amount to withdraw must be positive.")
+        if value < 10:
+            raise serializers.ValidationError("Amount to withdraw must be greater than 10.")
         return value
+
+
