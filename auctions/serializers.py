@@ -32,6 +32,7 @@ class AuctionListCreateSerializer(serializers.ModelSerializer):
     avg_rating = serializers.SerializerMethodField(read_only = True)
 
     time_left = serializers.SerializerMethodField(read_only = True)
+    last_call = serializers.SerializerMethodField(read_only = True)
 
     class Meta:
         model = Auction
@@ -64,6 +65,15 @@ class AuctionListCreateSerializer(serializers.ModelSerializer):
             return f"{hours}h {minutes}min"
         else:
             return f"{minutes}min"
+    
+    @extend_schema_field(serializers.BooleanField())
+    def get_last_call(self, obj):
+        if (obj.closing_date - timezone.now()) < timedelta(hours=24) and not obj.ratings.exists():
+            return True
+        else:
+            return False
+
+
 
     
     def validate_closing_date(self, value):
@@ -89,6 +99,7 @@ class AuctionDetailSerializer(serializers.ModelSerializer):
     time_left = serializers.SerializerMethodField(read_only = True)
 
     bid_counts = serializers.SerializerMethodField(read_only = True)
+    last_call = serializers.SerializerMethodField(read_only = True)
     
     class Meta:
         model = Auction
@@ -121,6 +132,13 @@ class AuctionDetailSerializer(serializers.ModelSerializer):
             return f"{hours}h {minutes}min"
         else:
             return f"{minutes}min"
+    
+    @extend_schema_field(serializers.BooleanField())
+    def get_last_call(self, obj):
+        if (obj.closing_date - timezone.now())  < timedelta(hours=24) and not obj.ratings.exists():
+            return True
+        else:
+            return False
 
 
     @extend_schema_field(serializers.IntegerField())
