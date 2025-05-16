@@ -28,7 +28,7 @@ SECRET_KEY = "django-insecure-jwn+3b6&zb0bho6an1@gtbw1$!1x-8()6@6z#-dycce7cd*1@k
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "@dpg-cvu2ijje5dus73cfc4j0-a.oregon-postgres.render.com"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "@dpg-d0jfh2u3jp1c739sb9mg-a.oregon-postgres.render.com"]
 
 #CORS_ALLOWED_ORIGINS = ["http://127.0.0.1"]
 
@@ -87,12 +87,8 @@ WSGI_APPLICATION = "planBackend.wsgi.application"
 
 load_dotenv()
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+'default': dj_database_url.config(default=os.getenv("DATABASE_URL"))
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
